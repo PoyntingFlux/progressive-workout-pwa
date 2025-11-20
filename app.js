@@ -19,12 +19,20 @@ function makeId() {
   return "id-" + Math.random().toString(36).slice(2) + Date.now().toString(36);
 }
 
+// ===== Theme helpers (needed by default state) =====
+function getSystemTheme() {
+  if (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) {
+    return "dark";
+  }
+  return "light";
+}
+
 // ===== Default Data =====
 const defaultState = () => ({
   settings: {
     startDate: new Date().toISOString().slice(0, 10), // yyyy-mm-dd
     restEveryNDays: 4,
-    theme: "system", // "system" | "light" | "dark"
+    theme: getSystemTheme(), // "light" | "dark"
     settingsCollapsed: false
   },
   // how many training days completed in current cycle
@@ -118,6 +126,7 @@ function loadState() {
     if (!("streakCount" in merged)) merged.streakCount = 0;
     if (!("bestStreak" in merged)) merged.bestStreak = 0;
     if (!("settingsCollapsed" in merged.settings)) merged.settingsCollapsed = false;
+    if (!merged.settings.theme) merged.settings.theme = getSystemTheme();
 
     return merged;
   } catch (e) {
@@ -166,16 +175,8 @@ function repsForExercise(ex, trainingDayIndex) {
 }
 
 // ===== Theme helpers =====
-function getSystemTheme() {
-  if (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) {
-    return "dark";
-  }
-  return "light";
-}
-
 function getEffectiveTheme() {
-  const pref = state.settings.theme || "system";
-  if (pref === "system") return getSystemTheme();
+  const pref = state.settings.theme || getSystemTheme();
   return pref;
 }
 
@@ -434,7 +435,7 @@ function renderSettings() {
   // Settings fields
   restDaysInput.value = state.settings.restEveryNDays ?? 0;
   startDateInput.value = state.settings.startDate;
-  themeSelect.value = state.settings.theme || "system";
+  themeSelect.value = state.settings.theme || getSystemTheme();
 
   // Collapsed state
   const collapsed = !!state.settings.settingsCollapsed;
@@ -556,7 +557,7 @@ saveSettingsBtn.addEventListener("click", () => {
   const startDate = startDateInput.value || todayString();
   state.settings.restEveryNDays = isNaN(restDays) ? 0 : restDays;
   state.settings.startDate = startDate;
-  state.settings.theme = themeSelect.value || "system";
+  state.settings.theme = themeSelect.value || getSystemTheme();
 
   // Update exercises from table and reset today's per-day sets
   syncExercisesFromTableToState();
@@ -586,16 +587,6 @@ toggleSettingsBtn.addEventListener("click", () => {
   saveState();
   render();
 });
-
-// Listen for system theme changes if user is on "system"
-if (window.matchMedia) {
-  const mq = window.matchMedia("(prefers-color-scheme: dark)");
-  mq.addEventListener("change", () => {
-    if ((state.settings.theme || "system") === "system") {
-      applyTheme();
-    }
-  });
-}
 
 // ===== Initial Render =====
 render();

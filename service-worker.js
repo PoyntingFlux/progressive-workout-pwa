@@ -1,4 +1,4 @@
-const CACHE_NAME = "progressive-workout-cache-v7";
+const CACHE_NAME = "progressive-workout-cache-v8";
 const ASSETS = [
   "./",
   "./index.html",

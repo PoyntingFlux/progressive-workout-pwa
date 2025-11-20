@@ -234,6 +234,10 @@ main {
   box-shadow: none;
 }
 
+.settings-actions #reset-cycle-btn {
+  flex-direction: column;
+}
+
 .reset-sub {
   font-size: 0.8em;
 }
