@@ -410,11 +410,11 @@ function renderToday() {
         <td>${reps}</td>
         <td>
           <button
-            class="icon-btn complete-set-btn"
+            class="secondary-btn complete-set-btn"
             data-id="${ex.id}"
             ${setsLeft <= 0 ? "disabled" : ""}
           >
-            ✅
+            ✓&nbsp;set
           </button>
         </td>
       `;
@@ -443,7 +443,7 @@ function renderSettings() {
       <td><input type="number" class="ex-start" min="1" value="${ex.startReps}" /></td>
       <td><input type="number" class="ex-inc" min="0" value="${ex.repIncrement}" /></td>
       <td><input type="number" class="ex-max" min="1" value="${ex.maxReps}" /></td>
-      <td><button class="danger-btn ex-delete">🗑</button></td>
+      <td><button class="danger-btn ex-delete">✕</button></td>
     `;
     settingsExerciseBody.appendChild(tr);
   });
