@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
   <meta charset="UTF-8" />
   <title>Progressive Workout</title>
@@ -24,12 +24,13 @@
       <p id="today-date" class="muted"></p>
       <p id="day-info"></p>
       <p id="cycle-info" class="muted"></p>
+      <p id="streak-info" class="muted"></p>
 
       <div id="rest-message" class="rest-banner hidden">
         🏖 Rest day — no workout today.
       </div>
 
-      <div id="workout-container" class="hidden">
+      <div id="workout-container" class="hidden fade-container">
         <h3>Exercises</h3>
         <table class="exercise-table">
           <thead>
@@ -54,55 +55,70 @@
     </section>
 
     <section id="settings-section" class="card">
-      <h2>Settings</h2>
-
-      <div class="settings-group">
-        <label>
-          Rest every
-          <input id="rest-days-input" type="number" min="0" value="4" />
-          days (0 = no rest days)
-        </label>
+      <div class="settings-header-row">
+        <h2>Settings</h2>
       </div>
 
-      <div class="settings-group">
-        <label>
-          Start date
-          <input id="start-date-input" type="date" />
-        </label>
-        <button id="reset-start-btn" class="secondary-btn">
-          Set start date to today
+      <div id="settings-body" class="settings-body fade-container">
+        <div class="settings-group">
+          <label>
+            Rest every
+            <input id="rest-days-input" type="number" min="0" value="4" />
+            days (0 = no rest days)
+          </label>
+        </div>
+
+        <div class="settings-group">
+          <label>
+            Start date
+            <input id="start-date-input" type="date" />
+          </label>
+          <button id="reset-start-btn" class="secondary-btn">
+            Set start date to today
+          </button>
+        </div>
+
+        <div class="settings-group">
+          <label>
+            Theme
+            <select id="theme-select">
+              <option value="system">System</option>
+              <option value="light">Light</option>
+              <option value="dark">Dark</option>
+            </select>
+          </label>
+        </div>
+
+        <h3>Exercises</h3>
+        <table class="exercise-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Sets</th>
+              <th>Start Reps</th>
+              <th>+Reps/Day</th>
+              <th>Max Reps</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="settings-exercise-body">
+          </tbody>
+        </table>
+
+        <button id="add-exercise-btn" class="secondary-btn icon-btn">
+          <span>＋</span><span>Add Exercise</span>
         </button>
+
+        <div class="settings-actions">
+          <button id="save-settings-btn" class="primary-btn">
+            Save Settings
+          </button>
+          <button id="reset-cycle-btn" class="danger-btn">
+            Reset Cycle (back to day 1)
+          </button>
+        </div>
+        <p id="settings-status" class="muted"></p>
       </div>
-
-      <h3>Exercises</h3>
-      <table class="exercise-table">
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Sets</th>
-            <th>Start Reps</th>
-            <th>+Reps/Day</th>
-            <th>Max Reps</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody id="settings-exercise-body">
-        </tbody>
-      </table>
-
-      <button id="add-exercise-btn" class="secondary-btn">
-        + Add Exercise
-      </button>
-
-      <div class="settings-actions">
-        <button id="save-settings-btn" class="primary-btn">
-          Save Settings
-        </button>
-        <button id="reset-cycle-btn" class="danger-btn">
-          Reset Cycle (back to day 1)
-        </button>
-      </div>
-      <p id="settings-status" class="muted"></p>
     </section>
   </main>
 

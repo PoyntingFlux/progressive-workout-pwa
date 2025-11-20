@@ -1,8 +1,26 @@
-/* Basic styling for the PWA */
+/* Basic styling for the PWA with light/dark themes */
 :root {
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  color: #111827;
-  background: #f3f4f6;
+  --bg: #f3f4f6;
+  --card-bg: #ffffff;
+  --text: #111827;
+  --muted: #6b7280;
+  --primary: #2563eb;
+  --danger: #ef4444;
+  --border-subtle: #e5e7eb;
+  --rest-bg: #fef3c7;
+  --rest-text: #92400e;
+}
+
+[data-theme="dark"] {
+  --bg: #020617;
+  --card-bg: #020617;
+  --text: #e5e7eb;
+  --muted: #9ca3af;
+  --primary: #60a5fa;
+  --danger: #f97373;
+  --border-subtle: #1f2937;
+  --rest-bg: #292524;
+  --rest-text: #fbbf24;
 }
 
 * {
@@ -11,7 +29,9 @@
 
 body {
   margin: 0;
-  background: #e5e7eb;
+  background: var(--bg);
+  color: var(--text);
+  transition: background 0.2s ease, color 0.2s ease;
 }
 
 .app-header {
@@ -27,7 +47,7 @@ body {
 .subtitle {
   margin: 0.25rem 0 0;
   font-size: 0.9rem;
-  color: #6b7280;
+  color: var(--muted);
 }
 
 main {
@@ -40,15 +60,16 @@ main {
   text-align: center;
   padding: 0.25rem 0.75rem 1rem;
   font-size: 0.8rem;
-  color: #6b7280;
+  color: var(--muted);
 }
 
 .card {
-  background: white;
+  background: var(--card-bg);
   border-radius: 0.9rem;
   padding: 0.9rem 0.8rem 1rem;
   margin-bottom: 0.9rem;
-  box-shadow: 0 1px 6px rgba(15, 23, 42, 0.12);
+  box-shadow: 0 1px 6px rgba(15, 23, 42, 0.18);
+  border: 1px solid var(--border-subtle);
 }
 
 .card h2 {
@@ -57,7 +78,7 @@ main {
 }
 
 .muted {
-  color: #6b7280;
+  color: var(--muted);
   font-size: 0.8rem;
 }
 
@@ -69,8 +90,8 @@ main {
   margin-top: 0.5rem;
   padding: 0.75rem;
   border-radius: 0.7rem;
-  background: #fef3c7;
-  color: #92400e;
+  background: var(--rest-bg);
+  color: var(--rest-text);
   font-size: 0.9rem;
 }
 
@@ -84,19 +105,32 @@ main {
 .exercise-table th,
 .exercise-table td {
   padding: 0.4rem 0.25rem;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--border-subtle);
   text-align: left;
 }
 
 .exercise-table th {
   font-weight: 600;
   font-size: 0.8rem;
-  color: #4b5563;
+  color: var(--muted);
+}
+
+.exercise-table tr {
+  transition: opacity 0.2s ease, background 0.2s ease;
+}
+
+.exercise-completed {
+  opacity: 0.5;
+}
+
+.exercise-completed td:first-child {
+  text-decoration: line-through;
 }
 
 .primary-btn,
 .secondary-btn,
-.danger-btn {
+.danger-btn,
+.icon-btn {
   border-radius: 0.7rem;
   border: none;
   padding: 0.6rem 0.9rem;
@@ -106,12 +140,13 @@ main {
   align-items: center;
   justify-content: center;
   gap: 0.25rem;
-  transition: transform 0.06s ease, box-shadow 0.06s ease, background 0.1s ease;
+  transition: transform 0.06s ease, box-shadow 0.06s ease, background 0.1s ease,
+    color 0.1s ease, border-color 0.1s ease;
 }
 
 .primary-btn {
-  background: #2563eb;
-  color: white;
+  background: var(--primary);
+  color: #ffffff;
   width: 100%;
   box-shadow: 0 2px 6px rgba(37, 99, 235, 0.4);
 }
@@ -124,19 +159,28 @@ main {
 
 .primary-btn:not(:disabled):active,
 .secondary-btn:active,
-.danger-btn:active {
+.danger-btn:active,
+.icon-btn:active {
   transform: translateY(1px);
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.2);
 }
 
-.secondary-btn {
-  background: #e5e7eb;
-  color: #111827;
+.secondary-btn,
+.icon-btn {
+  background: rgba(148, 163, 184, 0.18);
+  color: var(--text);
 }
 
 .danger-btn {
-  background: #ef4444;
-  color: white;
+  background: var(--danger);
+  color: #ffffff;
+}
+
+.secondary-btn:disabled,
+.icon-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+  box-shadow: none;
 }
 
 .settings-group {
@@ -151,11 +195,14 @@ main {
 }
 
 .settings-group input[type="number"],
-.settings-group input[type="date"] {
+.settings-group input[type="date"],
+.settings-group select {
   padding: 0.3rem 0.4rem;
   border-radius: 0.35rem;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--border-subtle);
   font-size: 0.85rem;
+  background: var(--card-bg);
+  color: var(--text);
 }
 
 .exercise-table input[type="text"],
@@ -163,8 +210,10 @@ main {
   width: 100%;
   padding: 0.25rem 0.35rem;
   border-radius: 0.35rem;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--border-subtle);
   font-size: 0.8rem;
+  background: var(--card-bg);
+  color: var(--text);
 }
 
 .settings-actions {
@@ -178,6 +227,22 @@ main {
 .settings-actions .danger-btn {
   flex: 1 1 48%;
   box-shadow: none;
+}
+
+.fade-container {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.settings-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.settings-header-row h2 {
+  margin: 0;
 }
 
 /* Small screen tweaks */

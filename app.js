@@ -1,5 +1,13 @@
-// ===== Storage Keys =====
-const STORAGE_KEY = "progressiveWorkoutState_v4";
+// ===== Storage Key (stable going forward) =====
+const STORAGE_KEY = "progressiveWorkoutState_main";
+
+// Legacy keys we used earlier; we'll try them if main is empty
+const LEGACY_KEYS = [
+  "progressiveWorkoutState_v1",
+  "progressiveWorkoutState_v2",
+  "progressiveWorkoutState_v3",
+  "progressiveWorkoutState_v4"
+];
 
 // ===== ID helper (works even if crypto.randomUUID is missing) =====
 function makeId() {
@@ -16,6 +24,7 @@ const defaultState = () => ({
   settings: {
     startDate: new Date().toISOString().slice(0, 10), // yyyy-mm-dd
     restEveryNDays: 4,
+    theme: "system", // "system" | "light" | "dark"
   },
   // how many training days completed in current cycle
   trainingDaysCompletedInCycle: 0,
@@ -23,6 +32,9 @@ const defaultState = () => ({
   cycleIndex: 0,
   // last calendar date we marked as completed (yyyy-mm-dd)
   lastCompletedDate: null,
+  // streaks
+  streakCount: 0,
+  bestStreak: 0,
   // per-day progress: remaining sets for each exercise for a given date
   perDayProgress: null,
   exercises: [
@@ -71,17 +83,41 @@ const defaultState = () => ({
 
 // ===== Helpers =====
 function loadState() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return defaultState();
-    const parsed = JSON.parse(raw);
+  // Try main key first
+  let raw = localStorage.getItem(STORAGE_KEY);
 
-    // Backwards-safe: ensure required pieces exist
-    return {
-      ...defaultState(),
+  // If no data yet, try legacy keys
+  if (!raw) {
+    for (const key of LEGACY_KEYS) {
+      const legacyRaw = localStorage.getItem(key);
+      if (legacyRaw) {
+        raw = legacyRaw;
+        break;
+      }
+    }
+  }
+
+  if (!raw) {
+    return defaultState();
+  }
+
+  try {
+    const parsed = JSON.parse(raw);
+    const base = defaultState();
+
+    // Merge parsed over defaults
+    const merged = {
+      ...base,
       ...parsed,
-      settings: { ...defaultState().settings, ...(parsed.settings || {}) },
+      settings: { ...base.settings, ...(parsed.settings || {}) },
     };
+
+    // Ensure required fields exist
+    if (!Array.isArray(merged.exercises)) merged.exercises = base.exercises;
+    if (!("streakCount" in merged)) merged.streakCount = 0;
+    if (!("bestStreak" in merged)) merged.bestStreak = 0;
+
+    return merged;
   } catch (e) {
     console.error("Error loading state", e);
     return defaultState();
@@ -127,6 +163,25 @@ function repsForExercise(ex, trainingDayIndex) {
   return Math.min(reps, ex.maxReps);
 }
 
+// ===== Theme helpers =====
+function getSystemTheme() {
+  if (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) {
+    return "dark";
+  }
+  return "light";
+}
+
+function getEffectiveTheme() {
+  const pref = state.settings.theme || "system";
+  if (pref === "system") return getSystemTheme();
+  return pref;
+}
+
+function applyTheme() {
+  const theme = getEffectiveTheme();
+  document.documentElement.setAttribute("data-theme", theme);
+}
+
 // ===== State =====
 let state = loadState();
 
@@ -134,6 +189,7 @@ let state = loadState();
 const todayDateEl = document.getElementById("today-date");
 const dayInfoEl = document.getElementById("day-info");
 const cycleInfoEl = document.getElementById("cycle-info");
+const streakInfoEl = document.getElementById("streak-info");
 const restMessageEl = document.getElementById("rest-message");
 const workoutContainerEl = document.getElementById("workout-container");
 const exerciseBodyEl = document.getElementById("exercise-body");
@@ -149,6 +205,7 @@ const addExerciseBtn = document.getElementById("add-exercise-btn");
 const saveSettingsBtn = document.getElementById("save-settings-btn");
 const resetCycleBtn = document.getElementById("reset-cycle-btn");
 const settingsStatusEl = document.getElementById("settings-status");
+const themeSelect = document.getElementById("theme-select");
 
 // ===== Core Logic =====
 function isRestDayFor(dateStr) {
@@ -179,12 +236,36 @@ function cycleCompleted() {
   return state.trainingDaysCompletedInCycle >= cycleLen;
 }
 
+function updateStreak(prevDate, today) {
+  if (!prevDate) {
+    state.streakCount = 1;
+  } else {
+    const diff = daysBetween(prevDate, today);
+    if (diff === 1) {
+      state.streakCount = (state.streakCount || 0) + 1;
+    } else if (diff === 0) {
+      // same day; don't change streak here
+      state.streakCount = state.streakCount || 1;
+    } else {
+      state.streakCount = 1;
+    }
+  }
+  if (!state.bestStreak || state.streakCount > state.bestStreak) {
+    state.bestStreak = state.streakCount;
+  }
+}
+
 function markTodayCompleted() {
   const today = todayString();
   if (isRestDayFor(today)) return;
 
   // Prevent double-completion for same calendar day
   if (state.lastCompletedDate === today) return;
+
+  const prevCompleted = state.lastCompletedDate;
+
+  // Update streak before overwriting lastCompletedDate
+  updateStreak(prevCompleted, today);
 
   state.trainingDaysCompletedInCycle += 1;
   state.lastCompletedDate = today;
@@ -277,13 +358,28 @@ function renderToday() {
   ensurePerDayProgressForToday();
 
   const isRest = isRestDayFor(today);
+  const alreadyCompleted = state.lastCompletedDate === today;
 
   const cycleLen = cycleLengthInTrainingDays(state.exercises);
-  const trainingIndex = currentTrainingDayIndex();
-  dayInfoEl.textContent = isRest
-    ? "Rest day (no training today)."
-    : `Training day ${trainingIndex} of ${cycleLen} in this cycle.`;
+  const trainingIndexRaw = currentTrainingDayIndex();
+  const displayIndex = alreadyCompleted
+    ? state.trainingDaysCompletedInCycle
+    : trainingIndexRaw;
+
+  if (isRest) {
+    dayInfoEl.textContent = "Rest day (no training today).";
+  } else {
+    const completedSuffix = alreadyCompleted ? " (completed)" : "";
+    dayInfoEl.textContent = `Training day ${displayIndex} of ${cycleLen} in this cycle${completedSuffix}.`;
+  }
   cycleInfoEl.textContent = `Cycle #${state.cycleIndex + 1}`;
+
+  // streak info
+  if (state.streakCount && state.streakCount > 0) {
+    streakInfoEl.textContent = `Streak: ${state.streakCount} day${state.streakCount === 1 ? "" : "s"} · Best: ${state.bestStreak}`;
+  } else {
+    streakInfoEl.textContent = "";
+  }
 
   if (isRest) {
     restMessageEl.classList.remove("hidden");
@@ -305,17 +401,20 @@ function renderToday() {
           : ex.sets;
 
       const tr = document.createElement("tr");
+      if (setsLeft <= 0) {
+        tr.classList.add("exercise-completed");
+      }
       tr.innerHTML = `
         <td>${ex.name}</td>
         <td>${setsLeft}</td>
         <td>${reps}</td>
         <td>
           <button
-            class="secondary-btn complete-set-btn"
+            class="icon-btn complete-set-btn"
             data-id="${ex.id}"
             ${setsLeft <= 0 ? "disabled" : ""}
           >
-            Complete 1 set
+            ✅
           </button>
         </td>
       `;
@@ -323,7 +422,6 @@ function renderToday() {
     });
   }
 
-  const alreadyCompleted = state.lastCompletedDate === today;
   completeBtn.disabled = isRest || alreadyCompleted || !state.exercises.length;
   completedMessageEl.classList.toggle("hidden", !alreadyCompleted);
 }
@@ -332,6 +430,7 @@ function renderSettings() {
   // Settings fields
   restDaysInput.value = state.settings.restEveryNDays ?? 0;
   startDateInput.value = state.settings.startDate;
+  themeSelect.value = state.settings.theme || "system";
 
   // Exercises table
   settingsExerciseBody.innerHTML = "";
@@ -344,7 +443,7 @@ function renderSettings() {
       <td><input type="number" class="ex-start" min="1" value="${ex.startReps}" /></td>
       <td><input type="number" class="ex-inc" min="0" value="${ex.repIncrement}" /></td>
       <td><input type="number" class="ex-max" min="1" value="${ex.maxReps}" /></td>
-      <td><button class="danger-btn ex-delete">✕</button></td>
+      <td><button class="danger-btn ex-delete">🗑</button></td>
     `;
     settingsExerciseBody.appendChild(tr);
   });
@@ -362,6 +461,7 @@ function renderStatus(message, timeoutMs = 2000) {
 }
 
 function render() {
+  applyTheme();
   renderToday();
   renderSettings();
 }
@@ -411,7 +511,7 @@ settingsExerciseBody.addEventListener("click", (e) => {
   }
 });
 
-// New: handle "Complete 1 set" buttons
+// handle "Complete 1 set" buttons
 exerciseBodyEl.addEventListener("click", (e) => {
   const btn = e.target.closest(".complete-set-btn");
   if (!btn) return;
@@ -446,6 +546,7 @@ saveSettingsBtn.addEventListener("click", () => {
   const startDate = startDateInput.value || todayString();
   state.settings.restEveryNDays = isNaN(restDays) ? 0 : restDays;
   state.settings.startDate = startDate;
+  state.settings.theme = themeSelect.value || "system";
 
   // Update exercises from table and reset today's per-day sets
   syncExercisesFromTableToState();
@@ -462,11 +563,23 @@ resetCycleBtn.addEventListener("click", () => {
   state.cycleIndex = 0;
   state.lastCompletedDate = null;
   state.perDayProgress = null;
+  state.streakCount = 0;
+  // keep bestStreak as a "high score"
 
   saveState();
   render();
   renderStatus("Cycle reset.");
 });
+
+// Listen for system theme changes if user is on "system"
+if (window.matchMedia) {
+  const mq = window.matchMedia("(prefers-color-scheme: dark)");
+  mq.addEventListener("change", () => {
+    if ((state.settings.theme || "system") === "system") {
+      applyTheme();
+    }
+  });
+}
 
 // ===== Initial Render =====
 render();
