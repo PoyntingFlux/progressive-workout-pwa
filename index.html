@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Progressive Workout</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- PWA manifest -->
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#111827" />
+
+  <!-- Basic styling -->
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="app-header">
+    <h1>Progressive Workout</h1>
+    <p class="subtitle">Simple progressive overload, on repeat.</p>
+  </header>
+
+  <main>
+    <section id="today-section" class="card">
+      <h2>Today</h2>
+      <p id="today-date" class="muted"></p>
+      <p id="day-info"></p>
+      <p id="cycle-info" class="muted"></p>
+
+      <div id="rest-message" class="rest-banner hidden">
+        🏖 Rest day — no workout today.
+      </div>
+
+      <div id="workout-container" class="hidden">
+        <h3>Exercises</h3>
+        <table class="exercise-table">
+          <thead>
+            <tr>
+              <th>Exercise</th>
+              <th>Sets left</th>
+              <th>Reps</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="exercise-body">
+          </tbody>
+        </table>
+
+        <button id="complete-btn" class="primary-btn">
+          Mark today as completed ✅
+        </button>
+        <p id="completed-message" class="muted hidden">
+          Workout already marked completed for today.
+        </p>
+      </div>
+    </section>
+
+    <section id="settings-section" class="card">
+      <h2>Settings</h2>
+
+      <div class="settings-group">
+        <label>
+          Rest every
+          <input id="rest-days-input" type="number" min="0" value="4" />
+          days (0 = no rest days)
+        </label>
+      </div>
+
+      <div class="settings-group">
+        <label>
+          Start date
+          <input id="start-date-input" type="date" />
+        </label>
+        <button id="reset-start-btn" class="secondary-btn">
+          Set start date to today
+        </button>
+      </div>
+
+      <h3>Exercises</h3>
+      <table class="exercise-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Sets</th>
+            <th>Start Reps</th>
+            <th>+Reps/Day</th>
+            <th>Max Reps</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="settings-exercise-body">
+        </tbody>
+      </table>
+
+      <button id="add-exercise-btn" class="secondary-btn">
+        + Add Exercise
+      </button>
+
+      <div class="settings-actions">
+        <button id="save-settings-btn" class="primary-btn">
+          Save Settings
+        </button>
+        <button id="reset-cycle-btn" class="danger-btn">
+          Reset Cycle (back to day 1)
+        </button>
+      </div>
+      <p id="settings-status" class="muted"></p>
+    </section>
+  </main>
+
+  <footer class="app-footer">
+    <p class="muted">
+      Install this app: open in Safari → Share → "Add to Home Screen".
+    </p>
+  </footer>
+
+  <script src="app.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('service-worker.js').catch(console.error);
+      });
+    }
+  </script>
+</body>
+</html>
