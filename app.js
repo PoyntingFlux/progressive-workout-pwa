@@ -25,6 +25,7 @@ const defaultState = () => ({
     startDate: new Date().toISOString().slice(0, 10), // yyyy-mm-dd
     restEveryNDays: 4,
     theme: "system", // "system" | "light" | "dark"
+    settingsCollapsed: false
   },
   // how many training days completed in current cycle
   trainingDaysCompletedInCycle: 0,
@@ -116,6 +117,7 @@ function loadState() {
     if (!Array.isArray(merged.exercises)) merged.exercises = base.exercises;
     if (!("streakCount" in merged)) merged.streakCount = 0;
     if (!("bestStreak" in merged)) merged.bestStreak = 0;
+    if (!("settingsCollapsed" in merged.settings)) merged.settingsCollapsed = false;
 
     return merged;
   } catch (e) {
@@ -206,6 +208,8 @@ const saveSettingsBtn = document.getElementById("save-settings-btn");
 const resetCycleBtn = document.getElementById("reset-cycle-btn");
 const settingsStatusEl = document.getElementById("settings-status");
 const themeSelect = document.getElementById("theme-select");
+const settingsBodyEl = document.getElementById("settings-body");
+const toggleSettingsBtn = document.getElementById("toggle-settings-btn");
 
 // ===== Core Logic =====
 function isRestDayFor(dateStr) {
@@ -432,6 +436,12 @@ function renderSettings() {
   startDateInput.value = state.settings.startDate;
   themeSelect.value = state.settings.theme || "system";
 
+  // Collapsed state
+  const collapsed = !!state.settings.settingsCollapsed;
+  settingsBodyEl.classList.toggle("hidden", collapsed);
+  toggleSettingsBtn.setAttribute("aria-expanded", (!collapsed).toString());
+  toggleSettingsBtn.textContent = collapsed ? "Show" : "Hide";
+
   // Exercises table
   settingsExerciseBody.innerHTML = "";
   state.exercises.forEach((ex) => {
@@ -569,6 +579,12 @@ resetCycleBtn.addEventListener("click", () => {
   saveState();
   render();
   renderStatus("Cycle reset.");
+});
+
+toggleSettingsBtn.addEventListener("click", () => {
+  state.settings.settingsCollapsed = !state.settings.settingsCollapsed;
+  saveState();
+  render();
 });
 
 // Listen for system theme changes if user is on "system"
