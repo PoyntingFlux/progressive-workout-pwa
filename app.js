@@ -41,6 +41,8 @@ const defaultState = () => ({
   cycleIndex: 0,
   // last calendar date we marked as completed (yyyy-mm-dd)
   lastCompletedDate: null,
+  // last calendar date we updated the streak counter
+  lastStreakDate: null,
   // streaks
   streakCount: 0,
   bestStreak: 0,
@@ -127,6 +129,9 @@ function loadState() {
     if (!("bestStreak" in merged)) merged.bestStreak = 0;
     if (!("settingsCollapsed" in merged.settings)) merged.settingsCollapsed = false;
     if (!merged.settings.theme) merged.settings.theme = getSystemTheme();
+    if (!("lastStreakDate" in merged)) {
+      merged.lastStreakDate = merged.lastCompletedDate || null;
+    }
 
     return merged;
   } catch (e) {
@@ -211,6 +216,7 @@ const settingsStatusEl = document.getElementById("settings-status");
 const themeSelect = document.getElementById("theme-select");
 const settingsBodyEl = document.getElementById("settings-body");
 const toggleSettingsBtn = document.getElementById("toggle-settings-btn");
+const updateAppBtn = document.getElementById("update-app-btn");
 
 // ===== Core Logic =====
 function isRestDayFor(dateStr) {
@@ -241,23 +247,35 @@ function cycleCompleted() {
   return state.trainingDaysCompletedInCycle >= cycleLen;
 }
 
-function updateStreak(prevDate, today) {
-  if (!prevDate) {
+// ---- Streak helpers ----
+function bumpStreakForDay(dayStr) {
+  const prev = state.lastStreakDate;
+  if (!prev) {
     state.streakCount = 1;
   } else {
-    const diff = daysBetween(prevDate, today);
+    const diff = daysBetween(prev, dayStr);
     if (diff === 1) {
       state.streakCount = (state.streakCount || 0) + 1;
     } else if (diff === 0) {
-      // same day; don't change streak here
       state.streakCount = state.streakCount || 1;
     } else {
       state.streakCount = 1;
     }
   }
+  state.lastStreakDate = dayStr;
   if (!state.bestStreak || state.streakCount > state.bestStreak) {
     state.bestStreak = state.streakCount;
   }
+}
+
+function maybeExtendStreakForRestDay(today) {
+  if (!isRestDayFor(today)) return;
+  // Don't double-count if we've already recorded this day
+  if (state.lastStreakDate === today) return;
+  // Only extend if we've actually completed at least one workout in the past
+  if (!state.lastCompletedDate) return;
+  bumpStreakForDay(today);
+  saveState();
 }
 
 function markTodayCompleted() {
@@ -267,10 +285,8 @@ function markTodayCompleted() {
   // Prevent double-completion for same calendar day
   if (state.lastCompletedDate === today) return;
 
-  const prevCompleted = state.lastCompletedDate;
-
-  // Update streak before overwriting lastCompletedDate
-  updateStreak(prevCompleted, today);
+  // Update streak for this workout day
+  bumpStreakForDay(today);
 
   state.trainingDaysCompletedInCycle += 1;
   state.lastCompletedDate = today;
@@ -353,6 +369,11 @@ function syncExercisesFromTableToState() {
 function renderToday() {
   const today = todayString();
   const date = new Date();
+
+  // If today is a rest day and we followed the plan yesterday,
+  // automatically extend the streak without pressing any buttons.
+  maybeExtendStreakForRestDay(today);
+
   todayDateEl.textContent = date.toLocaleDateString(undefined, {
     weekday: "short",
     year: "numeric",
@@ -573,6 +594,7 @@ resetCycleBtn.addEventListener("click", () => {
   state.trainingDaysCompletedInCycle = 0;
   state.cycleIndex = 0;
   state.lastCompletedDate = null;
+  state.lastStreakDate = null;
   state.perDayProgress = null;
   state.streakCount = 0;
   // keep bestStreak as a "high score"
@@ -587,6 +609,46 @@ toggleSettingsBtn.addEventListener("click", () => {
   saveState();
   render();
 });
+
+// ===== Service worker registration & in-app update button =====
+let newWorker = null;
+
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker
+    .register("service-worker.js")
+    .then((reg) => {
+      reg.addEventListener("updatefound", () => {
+        const sw = reg.installing;
+        if (!sw) return;
+        sw.addEventListener("statechange", () => {
+          if (sw.state === "installed" && navigator.serviceWorker.controller) {
+            // New version ready
+            newWorker = sw;
+            if (updateAppBtn) {
+              updateAppBtn.classList.remove("hidden");
+            }
+          }
+        });
+      });
+    })
+    .catch(console.error);
+
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    // When the new service worker takes control, reload to pick up new files.
+    window.location.reload();
+  });
+}
+
+if (updateAppBtn) {
+  updateAppBtn.addEventListener("click", () => {
+    if (newWorker) {
+      newWorker.postMessage({ type: "SKIP_WAITING" });
+    } else {
+      // Fallback: just reload, in case a new SW was already activated.
+      window.location.reload();
+    }
+  });
+}
 
 // ===== Initial Render =====
 render();

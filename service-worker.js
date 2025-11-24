@@ -1,4 +1,4 @@
-const CACHE_NAME = "progressive-workout-cache-v8";
+const CACHE_NAME = "progressive-workout-cache-v9";
 const ASSETS = [
   "./",
   "./index.html",
@@ -31,4 +31,11 @@ self.addEventListener("fetch", (event) => {
   event.respondWith(
     caches.match(event.request).then((cached) => cached || fetch(event.request))
   );
+});
+
+// Allow the page to tell this worker to activate immediately.
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
 });

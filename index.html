@@ -134,15 +134,11 @@
     <p class="muted">
       Install this app: open in Safari → Share → "Add to Home Screen".
     </p>
+    <button id="update-app-btn" class="secondary-btn hidden">
+      Update app
+    </button>
   </footer>
 
   <script src="app.js"></script>
-  <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('service-worker.js').catch(console.error);
-      });
-    }
-  </script>
 </body>
 </html>
