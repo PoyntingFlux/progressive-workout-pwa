@@ -39,9 +39,9 @@ const defaultState = () => ({
   trainingDaysCompletedInCycle: 0,
   // which cycle (0-based)
   cycleIndex: 0,
-  // last calendar date we marked as completed (yyyy-mm-dd)
+  // last calendar date we marked as completed (yyyy-mm-dd, workout days only)
   lastCompletedDate: null,
-  // last calendar date we updated the streak counter
+  // last calendar date we updated the streak counter (can be workout or rest)
   lastStreakDate: null,
   // streaks
   streakCount: 0,
@@ -217,7 +217,7 @@ const themeSelect = document.getElementById("theme-select");
 const settingsBodyEl = document.getElementById("settings-body");
 const toggleSettingsBtn = document.getElementById("toggle-settings-btn");
 const updateAppBtn = document.getElementById("update-app-btn");
-const emergencyUpdateBtn = document.getElementById("emergency-update-btn");
+const clearCacheBtn = document.getElementById("clear-cache-btn");
 
 // ===== Core Logic =====
 function isRestDayFor(dateStr) {
@@ -611,79 +611,13 @@ toggleSettingsBtn.addEventListener("click", () => {
   render();
 });
 
-// ===== Emergency Update Feature =====
-async function emergencyUpdate() {
-  const confirmed = confirm(
-    "Force update to latest version?\n\n" +
-    "✅ Your workout data will be preserved\n" +
-    "✅ Your settings will be preserved\n" +
-    "🔄 App files will be refreshed\n\n" +
-    "The app will reload automatically."
-  );
-  
-  if (!confirmed) return;
-  
-  try {
-    // Step 1: Backup current data (just in case)
-    const backup = localStorage.getItem(STORAGE_KEY);
-    sessionStorage.setItem('workout_backup', backup);
-    
-    // Step 2: Unregister service worker
-    if ('serviceWorker' in navigator) {
-      const registrations = await navigator.serviceWorker.getRegistrations();
-      await Promise.all(registrations.map(reg => reg.unregister()));
-    }
-    
-    // Step 3: Clear all caches
-    if ('caches' in window) {
-      const names = await caches.keys();
-      await Promise.all(names.map(name => caches.delete(name)));
-    }
-    
-    // Step 4: Restore backup and reload
-    if (backup) {
-      localStorage.setItem(STORAGE_KEY, backup);
-    }
-    
-    // Force reload with cache bypass
-    window.location.reload(true);
-    
-  } catch (error) {
-    alert("Update failed: " + error.message);
-    console.error("Emergency update error:", error);
-  }
-}
-
-if (emergencyUpdateBtn) {
-  emergencyUpdateBtn.addEventListener("click", emergencyUpdate);
-}
-
-// ===== Service worker registration & in-app update button =====
+// ===== Service worker registration & in-app update helpers =====
 let newWorker = null;
-let refreshing = false;
-
-// Prevent infinite refresh loop
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.addEventListener("controllerchange", () => {
-    if (!refreshing) {
-      refreshing = true;
-      window.location.reload();
-    }
-  });
-}
 
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker
     .register("service-worker.js")
     .then((reg) => {
-      // Check for updates on load
-      reg.update();
-      
-      // Check for updates periodically
-      setInterval(() => {
-        reg.update();
-      }, 60000);
-      
       reg.addEventListener("updatefound", () => {
         const sw = reg.installing;
         if (!sw) return;
@@ -699,6 +633,11 @@ if ("serviceWorker" in navigator) {
       });
     })
     .catch(console.error);
+
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    // When the new service worker takes control, reload to pick up new files.
+    window.location.reload();
+  });
 }
 
 if (updateAppBtn) {
@@ -706,8 +645,23 @@ if (updateAppBtn) {
     if (newWorker) {
       newWorker.postMessage({ type: "SKIP_WAITING" });
     } else {
+      // Fallback: just reload, in case a new SW was already activated.
       window.location.reload();
     }
+  });
+}
+
+// Manual cache clear button (doesn't touch workout data in localStorage)
+if (clearCacheBtn) {
+  clearCacheBtn.addEventListener("click", async () => {
+    if (!confirm("Clear cached files and reload? Your workout data will be preserved.")) return;
+
+    if ("caches" in window) {
+      const names = await caches.keys();
+      await Promise.all(names.map((name) => caches.delete(name)));
+    }
+
+    window.location.reload();
   });
 }
 

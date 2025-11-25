@@ -9,8 +9,8 @@
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#111827" />
 
-  <!-- Basic styling -->
-  <link rel="stylesheet" href="styles.css" />
+  <!-- Basic styling (cache-busted for v10) -->
+  <link rel="stylesheet" href="styles.css?v=10" />
 </head>
 <body>
   <header class="app-header">
@@ -134,11 +134,18 @@
     <p class="muted">
       Install this app: open in Safari → Share → "Add to Home Screen".
     </p>
-    <button id="update-app-btn" class="secondary-btn hidden">
-      Update app
-    </button>
+    <p class="muted">
+      Version 10 ·
+      <button id="clear-cache-btn" class="secondary-btn small-btn">
+        Clear cache
+      </button>
+      <button id="update-app-btn" class="secondary-btn small-btn hidden">
+        Update app
+      </button>
+    </p>
   </footer>
 
-  <script src="app.js"></script>
+  <!-- App logic (cache-busted for v10) -->
+  <script src="app.js?v=10"></script>
 </body>
 </html>
