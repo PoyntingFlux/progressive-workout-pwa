@@ -1,4 +1,4 @@
-const CACHE_NAME = "progressive-workout-cache-v9";
+const CACHE_NAME = "progressive-workout-cache-v10";
 const ASSETS = [
   "./",
   "./index.html",
@@ -19,7 +19,6 @@ self.addEventListener("install", (event) => {
 });
 
 self.addEventListener("activate", (event) => {
-  // Take control of all clients immediately
   event.waitUntil(
     Promise.all([
       // Delete old caches
@@ -30,7 +29,7 @@ self.addEventListener("activate", (event) => {
             .map((k) => caches.delete(k))
         )
       ),
-      // Claim all clients
+      // Claim all clients immediately
       self.clients.claim()
     ])
   );
@@ -39,14 +38,14 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
   
-  // Network-first strategy for HTML files and the root
+  // Network-first strategy for HTML files to ensure updates
   if (event.request.headers.get('accept')?.includes('text/html') || 
       url.pathname === '/' || 
       url.pathname === '/index.html') {
     event.respondWith(
       fetch(event.request)
         .then((response) => {
-          // Clone the response before caching
+          // Clone and cache the response
           const responseToCache = response.clone();
           caches.open(CACHE_NAME).then((cache) => {
             cache.put(event.request, responseToCache);
@@ -59,11 +58,11 @@ self.addEventListener("fetch", (event) => {
         })
     );
   } else {
-    // Cache-first for all other assets (CSS, JS, images)
+    // Cache-first for other assets (CSS, JS, images)
     event.respondWith(
       caches.match(event.request).then((cached) => {
         if (cached) {
-          // Return cached version, but update in background
+          // Return cached, but update in background
           fetch(event.request).then((response) => {
             caches.open(CACHE_NAME).then((cache) => {
               cache.put(event.request, response);
@@ -77,6 +76,7 @@ self.addEventListener("fetch", (event) => {
   }
 });
 
+// Allow the page to tell this worker to activate immediately
 self.addEventListener("message", (event) => {
   if (event.data && event.data.type === "SKIP_WAITING") {
     self.skipWaiting();
