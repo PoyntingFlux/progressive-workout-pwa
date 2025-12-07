@@ -9,8 +9,8 @@
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#111827" />
 
-  <!-- Basic styling (cache-busted for v10) -->
-  <link rel="stylesheet" href="styles.css?v=10" />
+  <!-- Basic styling (cache-busted for v11) -->
+  <link rel="stylesheet" href="styles.css?v=11" />
 </head>
 <body>
   <header class="app-header">
@@ -52,6 +52,37 @@
           Workout already marked completed for today.
         </p>
       </div>
+    </section>
+
+    <section id="auto-tune-section" class="card hidden">
+      <div class="auto-tune-header-row">
+        <h2>Auto-Tune Review (optional)</h2>
+        <p id="auto-tune-cycle-label" class="muted"></p>
+      </div>
+      <p class="muted">
+        At the end of a cycle, quickly review how each exercise felt. Suggestions
+        are shown only here — nothing changes until you tap “Apply Auto-Tune”.
+      </p>
+      <table class="exercise-table auto-tune-table">
+        <thead>
+          <tr>
+            <th>Exercise</th>
+            <th>Last min–max</th>
+            <th>Review</th>
+            <th>Suggested</th>
+          </tr>
+        </thead>
+        <tbody id="auto-tune-body"></tbody>
+      </table>
+      <div class="auto-tune-actions">
+        <button id="apply-auto-tune-btn" class="primary-btn">
+          Apply Auto-Tune
+        </button>
+        <button id="dismiss-auto-tune-btn" class="secondary-btn">
+          Skip for now
+        </button>
+      </div>
+      <p id="auto-tune-status" class="muted"></p>
     </section>
 
     <section id="settings-section" class="card">
@@ -135,7 +166,7 @@
       Install this app: open in Safari → Share → "Add to Home Screen".
     </p>
     <p class="muted">
-      Version 10 ·
+      Version 11 ·
       <button id="clear-cache-btn" class="secondary-btn small-btn">
         Clear cache
       </button>
@@ -145,7 +176,7 @@
     </p>
   </footer>
 
-  <!-- App logic (cache-busted for v10) -->
-  <script src="app.js?v=10"></script>
+  <!-- App logic (cache-busted for v11) -->
+  <script src="app.js?v=11"></script>
 </body>
 </html>

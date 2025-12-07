@@ -193,6 +193,17 @@ function applyTheme() {
 // ===== State =====
 let state = loadState();
 
+// Ensure auto-tune state exists (for older saved data too)
+if (!state.autoTune) {
+  state.autoTune = {
+    pending: false,
+    completedCycleIndex: null,
+    snapshotExercises: [],
+    reviews: {}
+  };
+}
+
+
 // ===== DOM Elements =====
 const todayDateEl = document.getElementById("today-date");
 const dayInfoEl = document.getElementById("day-info");
@@ -218,6 +229,15 @@ const settingsBodyEl = document.getElementById("settings-body");
 const toggleSettingsBtn = document.getElementById("toggle-settings-btn");
 const updateAppBtn = document.getElementById("update-app-btn");
 const clearCacheBtn = document.getElementById("clear-cache-btn");
+
+// Auto-tune review elements
+const autoTuneSectionEl = document.getElementById("auto-tune-section");
+const autoTuneBodyEl = document.getElementById("auto-tune-body");
+const autoTuneCycleLabelEl = document.getElementById("auto-tune-cycle-label");
+const applyAutoTuneBtn = document.getElementById("apply-auto-tune-btn");
+const dismissAutoTuneBtn = document.getElementById("dismiss-auto-tune-btn");
+const autoTuneStatusEl = document.getElementById("auto-tune-status");
+
 
 // ===== Core Logic =====
 function isRestDayFor(dateStr) {
@@ -246,6 +266,53 @@ function currentRepsMap() {
 function cycleCompleted() {
   const cycleLen = cycleLengthInTrainingDays(state.exercises);
   return state.trainingDaysCompletedInCycle >= cycleLen;
+}
+
+// ----- Auto-tune helpers -----
+function ensureAutoTuneState() {
+  if (!state.autoTune) {
+    state.autoTune = {
+      pending: false,
+      completedCycleIndex: null,
+      snapshotExercises: [],
+      reviews: {}
+    };
+  } else {
+    if (!Array.isArray(state.autoTune.snapshotExercises)) {
+      state.autoTune.snapshotExercises = [];
+    }
+    if (!state.autoTune.reviews) {
+      state.autoTune.reviews = {};
+    }
+  }
+}
+
+function computeAutoTuneSuggestion(ex, review) {
+  const baseStart = ex.startReps || 1;
+  const baseMax = ex.maxReps || baseStart;
+  const step = ex.repIncrement && ex.repIncrement > 0 ? ex.repIncrement : 1;
+
+  if (review === "easy") {
+    const newStart = baseStart + step;
+    const newMax = baseMax + step * 2;
+    return { start: newStart, max: newMax };
+  }
+  if (review === "hard") {
+    const newStart = Math.max(1, baseStart - step);
+    const newMax = Math.max(newStart, baseMax - step * 2);
+    return { start: newStart, max: newMax };
+  }
+  // "right" or unknown: keep as-is
+  return { start: baseStart, max: baseMax };
+}
+
+function startAutoTuneReviewForCompletedCycle(completedCycleIndex) {
+  ensureAutoTuneState();
+  state.autoTune.pending = true;
+  state.autoTune.completedCycleIndex =
+    typeof completedCycleIndex === "number" ? completedCycleIndex : null;
+  state.autoTune.snapshotExercises = state.exercises.map((ex) => ({ ...ex }));
+  state.autoTune.reviews = {};
 }
 
 // ---- Streak helpers ----
@@ -293,8 +360,11 @@ function markTodayCompleted() {
   state.lastCompletedDate = today;
 
   if (cycleCompleted()) {
+    const completedCycleIndex = state.cycleIndex;
     state.trainingDaysCompletedInCycle = 0;
     state.cycleIndex += 1;
+    // Start an optional auto-tune review for the cycle we just finished.
+    startAutoTuneReviewForCompletedCycle(completedCycleIndex);
   }
 
   saveState();
@@ -493,10 +563,71 @@ function renderStatus(message, timeoutMs = 2000) {
   }
 }
 
+function renderAutoTune() {
+  if (!autoTuneSectionEl) return;
+
+  ensureAutoTuneState();
+  const data = state.autoTune;
+
+  if (!data.pending || !data.snapshotExercises || data.snapshotExercises.length === 0) {
+    autoTuneSectionEl.classList.add("hidden");
+    if (autoTuneBodyEl) autoTuneBodyEl.innerHTML = "";
+    if (autoTuneStatusEl) autoTuneStatusEl.textContent = "";
+    return;
+  }
+
+  autoTuneSectionEl.classList.remove("hidden");
+
+  const labelIndex =
+    (typeof data.completedCycleIndex === "number"
+      ? data.completedCycleIndex
+      : state.cycleIndex - 1) + 1;
+
+  if (autoTuneCycleLabelEl) {
+    autoTuneCycleLabelEl.textContent = `Cycle #${labelIndex}`;
+  }
+
+  if (autoTuneBodyEl) {
+    autoTuneBodyEl.innerHTML = "";
+    data.snapshotExercises.forEach((ex) => {
+      const review = data.reviews[ex.id] || "right";
+      const suggestion = computeAutoTuneSuggestion(ex, review);
+      const originalRange = `${ex.startReps}–${ex.maxReps}`;
+      let suggestionText;
+      if (suggestion.start === ex.startReps && suggestion.max === ex.maxReps) {
+        suggestionText = `Stay at ${originalRange}`;
+      } else {
+        suggestionText = `${originalRange} → ${suggestion.start}–${suggestion.max}`;
+      }
+
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${ex.name}</td>
+        <td>${originalRange}</td>
+        <td>
+          <select class="auto-review-select" data-id="${ex.id}">
+            <option value="easy"${review === "easy" ? " selected" : ""}>Too Easy</option>
+            <option value="right"${review === "right" ? " selected" : ""}>Just Right</option>
+            <option value="hard"${review === "hard" ? " selected" : ""}>Too Hard</option>
+          </select>
+        </td>
+        <td>${suggestionText}</td>
+      `;
+      autoTuneBodyEl.appendChild(tr);
+    });
+  }
+
+  if (autoTuneStatusEl) {
+    autoTuneStatusEl.textContent =
+      "Review is optional. Nothing changes until you tap “Apply Auto-Tune”.";
+  }
+}
+
 function render() {
   applyTheme();
   renderToday();
   renderSettings();
+  renderAutoTune();
 }
 
 // ===== Event Listeners =====
@@ -610,6 +741,62 @@ toggleSettingsBtn.addEventListener("click", () => {
   saveState();
   render();
 });
+
+// Auto-tune review interactions
+if (autoTuneBodyEl) {
+  autoTuneBodyEl.addEventListener("change", (e) => {
+    const select = e.target.closest(".auto-review-select");
+    if (!select) return;
+    ensureAutoTuneState();
+    const id = select.dataset.id;
+    const value = select.value || "right";
+    state.autoTune.reviews[id] = value;
+    saveState();
+    renderAutoTune();
+  });
+}
+
+if (applyAutoTuneBtn) {
+  applyAutoTuneBtn.addEventListener("click", () => {
+    ensureAutoTuneState();
+    const data = state.autoTune;
+    if (!data.pending || !data.snapshotExercises || data.snapshotExercises.length === 0) {
+      return;
+    }
+
+    const snapById = {};
+    data.snapshotExercises.forEach((ex) => {
+      snapById[ex.id] = ex;
+    });
+
+    state.exercises = state.exercises.map((ex) => {
+      const snap = snapById[ex.id] || ex;
+      const review = data.reviews[ex.id] || "right";
+      const suggestion = computeAutoTuneSuggestion(snap, review);
+      return {
+        ...ex,
+        startReps: suggestion.start,
+        maxReps: suggestion.max,
+      };
+    });
+
+    // Clear per-day progress so the next workout day starts fresh
+    state.perDayProgress = null;
+
+    state.autoTune.pending = false;
+    saveState();
+    render();
+  });
+}
+
+if (dismissAutoTuneBtn) {
+  dismissAutoTuneBtn.addEventListener("click", () => {
+    ensureAutoTuneState();
+    state.autoTune.pending = false;
+    saveState();
+    render();
+  });
+}
 
 // ===== Service worker registration & in-app update helpers =====
 let newWorker = null;
