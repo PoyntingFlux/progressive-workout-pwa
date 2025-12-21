@@ -1,7 +1,7 @@
 {
   "name": "Progressive Workout",
   "short_name": "Workout",
-  "start_url": "./index.html?v=11",
+  "start_url": "./index.html?v=12",
   "display": "standalone",
   "background_color": "#111827",
   "theme_color": "#111827",
