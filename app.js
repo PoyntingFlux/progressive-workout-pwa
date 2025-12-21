@@ -9,6 +9,23 @@ const LEGACY_KEYS = [
   "progressiveWorkoutState_v4"
 ];
 
+
+// ===== Local date helpers (avoid UTC rollover issues on iOS) =====
+function localYMD(date = new Date()) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function parseYMDLocal(dateStr) {
+  // Expects yyyy-mm-dd
+  const parts = String(dateStr || "").split("-").map((v) => parseInt(v, 10));
+  const y = parts[0] || 1970;
+  const m = parts[1] || 1;
+  const d = parts[2] || 1;
+  return new Date(y, m - 1, d);
+}
 // ===== ID helper (works even if crypto.randomUUID is missing) =====
 function makeId() {
   try {
@@ -27,28 +44,10 @@ function getSystemTheme() {
   return "light";
 }
 
-// ===== Local-date helpers (avoid UTC date rollover on iPhone) =====
-function localDateString(d = new Date()) {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
-
-function parseLocalDate(dateStr) {
-  // dateStr is expected to be yyyy-mm-dd
-  const parts = String(dateStr || "").split("-");
-  const y = parseInt(parts[0], 10);
-  const m = parseInt(parts[1], 10);
-  const d = parseInt(parts[2], 10);
-  if (!y || !m || !d) return new Date(NaN);
-  return new Date(y, m - 1, d); // local midnight
-}
-
 // ===== Default Data =====
 const defaultState = () => ({
   settings: {
-    startDate: localDateString(), // yyyy-mm-dd
+    startDate: localYMD(), // yyyy-mm-dd
     restEveryNDays: 4,
     theme: getSystemTheme(), // "light" | "dark"
     settingsCollapsed: false
@@ -164,15 +163,16 @@ function saveState() {
 
 // Date helpers
 function todayString() {
-  return localDateString(); // yyyy-mm-dd in local time
+  return new Date().toISOString().slice(0, 10); // yyyy-mm-dd
 }
+
 function daysBetween(dateStrA, dateStrB) {
-  const a = parseLocalDate(dateStrA);
-  const b = parseLocalDate(dateStrB);
+  const a = parseYMDLocal(dateStrA);
+  const b = parseYMDLocal(dateStrB);
   const msPerDay = 1000 * 60 * 60 * 24;
-  const diff = Math.floor((b - a) / msPerDay);
-  return diff;
+  return Math.floor((b - a) / msPerDay);
 }
+
 // Exercise helpers
 function trainingDaysToMax(ex) {
   if (ex.repIncrement <= 0) return 1;
