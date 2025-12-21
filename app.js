@@ -27,10 +27,28 @@ function getSystemTheme() {
   return "light";
 }
 
+// ===== Local-date helpers (avoid UTC date rollover on iPhone) =====
+function localDateString(d = new Date()) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function parseLocalDate(dateStr) {
+  // dateStr is expected to be yyyy-mm-dd
+  const parts = String(dateStr || "").split("-");
+  const y = parseInt(parts[0], 10);
+  const m = parseInt(parts[1], 10);
+  const d = parseInt(parts[2], 10);
+  if (!y || !m || !d) return new Date(NaN);
+  return new Date(y, m - 1, d); // local midnight
+}
+
 // ===== Default Data =====
 const defaultState = () => ({
   settings: {
-    startDate: new Date().toISOString().slice(0, 10), // yyyy-mm-dd
+    startDate: localDateString(), // yyyy-mm-dd
     restEveryNDays: 4,
     theme: getSystemTheme(), // "light" | "dark"
     settingsCollapsed: false
@@ -146,17 +164,15 @@ function saveState() {
 
 // Date helpers
 function todayString() {
-  return new Date().toISOString().slice(0, 10); // yyyy-mm-dd
+  return localDateString(); // yyyy-mm-dd in local time
 }
-
 function daysBetween(dateStrA, dateStrB) {
-  const a = new Date(dateStrA);
-  const b = new Date(dateStrB);
+  const a = parseLocalDate(dateStrA);
+  const b = parseLocalDate(dateStrB);
   const msPerDay = 1000 * 60 * 60 * 24;
   const diff = Math.floor((b - a) / msPerDay);
   return diff;
 }
-
 // Exercise helpers
 function trainingDaysToMax(ex) {
   if (ex.repIncrement <= 0) return 1;
