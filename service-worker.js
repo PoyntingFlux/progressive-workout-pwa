@@ -1,9 +1,9 @@
-const CACHE_NAME = "progressive-workout-cache-v13";
+const CACHE_NAME = "progressive-workout-cache-v14";
 const ASSETS = [
   "./",
-  "./index.html?v=13",
-  "./styles.css?v=13",
-  "./app.js?v=13",
+  "./index.html?v=14",
+  "./styles.css?v=14",
+  "./app.js?v=14",
   "./manifest.json",
   "./icon-192.png",
   "./icon-512.png"

@@ -163,7 +163,8 @@ function saveState() {
 
 // Date helpers
 function todayString() {
-  return new Date().toISOString().slice(0, 10); // yyyy-mm-dd
+  // FIXED: Use LOCAL date (avoid UTC rollover issues at 7PM CST)
+  return localYMD();
 }
 
 function daysBetween(dateStrA, dateStrB) {
@@ -354,10 +355,15 @@ function bumpStreakForDay(dayStr) {
 
 function maybeExtendStreakForRestDay(today) {
   if (!isRestDayFor(today)) return;
+
   // Don't double-count if we've already recorded this day
   if (state.lastStreakDate === today) return;
-  // Only extend if we've actually completed at least one workout in the past
+
+  // Only extend if yesterday's workout was completed (following the program).
   if (!state.lastCompletedDate) return;
+  const diff = daysBetween(state.lastCompletedDate, today);
+  if (diff !== 1) return;
+
   bumpStreakForDay(today);
   saveState();
 }
@@ -471,6 +477,27 @@ function renderToday() {
   ensurePerDayProgressForToday();
 
   const isRest = isRestDayFor(today);
+  
+  // HOLD LOGIC (NEW):
+  // If the calendar schedule says today is a rest day, but yesterday was a workout day
+  // and it was NOT completed, then we should NOT advance into a rest day.
+  // Instead, treat today as a workout day until the missed workout is completed.
+  const yesterday = (() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    return localYMD(d);
+  })();
+
+  let isRestAdjusted = isRest;
+  if (isRestAdjusted) {
+    const yesterdayWasRest = isRestDayFor(yesterday);
+    const yesterdayCompleted = state.lastCompletedDate === yesterday;
+    if (!yesterdayWasRest && !yesterdayCompleted) {
+      // Yesterday was a workout day but wasn't completed - HOLD on the workout
+      isRestAdjusted = false;
+    }
+  }
+  
   const alreadyCompleted = state.lastCompletedDate === today;
 
   const cycleLen = cycleLengthInTrainingDays(state.exercises);
@@ -479,7 +506,7 @@ function renderToday() {
     ? state.trainingDaysCompletedInCycle
     : trainingIndexRaw;
 
-  if (isRest) {
+  if (isRestAdjusted) {
     dayInfoEl.textContent = "Rest day (no training today).";
   } else {
     const completedSuffix = alreadyCompleted ? " (completed)" : "";
@@ -494,7 +521,7 @@ function renderToday() {
     streakInfoEl.textContent = "";
   }
 
-  if (isRest) {
+  if (isRestAdjusted) {
     restMessageEl.classList.remove("hidden");
     workoutContainerEl.classList.add("hidden");
   } else {
@@ -535,7 +562,7 @@ function renderToday() {
     });
   }
 
-  completeBtn.disabled = isRest || alreadyCompleted || !state.exercises.length;
+  completeBtn.disabled = isRestAdjusted || alreadyCompleted || !state.exercises.length;
   completedMessageEl.classList.toggle("hidden", !alreadyCompleted);
 }
 
@@ -635,7 +662,7 @@ function renderAutoTune() {
 
   if (autoTuneStatusEl) {
     autoTuneStatusEl.textContent =
-      "Review is optional. Nothing changes until you tap “Apply Auto-Tune”.";
+      "Review is optional. Nothing changes until you tap 'Apply Auto-Tune'.";
   }
 }
 
